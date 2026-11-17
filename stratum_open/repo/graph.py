@@ -58,7 +58,8 @@ _TS_FOR_JS = {".js": (".ts", ".tsx"), ".jsx": (".tsx",), ".mjs": (".mts",), ".cj
 _PY_KEYWORD = re.compile(r"import\b")
 # The names run to the end of the line, or past it after a backslash.
 _PY_IMPORT = re.compile(r"^[ \t]*import[ \t]+((?:[^\n;#\\]|\\\r?\n)+)", re.M)
-_PY_FROM = re.compile(r"^[ \t]*from[ \t]+(\.*)[ \t]*([\w.]*)[ \t]+import[ \t]*(\([^)]*\)|(?:[^\n;#\\]|\\\r?\n)*)", re.M)
+# Inside parentheses a `)` ends the import, but one inside a `#` comment does not.
+_PY_FROM = re.compile(r"^[ \t]*from[ \t]+(\.*)[ \t]*([\w.]*)[ \t]+import[ \t]*(\((?:#[^\n]*|[^#)])*\)|(?:[^\n;#\\]|\\\r?\n)*)", re.M)
 _PY_CONTINUED = re.compile(r"\\\r?\n")
 _PY_NAME = re.compile(r"[\w.]+")
 
