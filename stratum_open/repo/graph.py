@@ -56,13 +56,15 @@ _SHOWN = 3  # example importers named in a note
 _TS_FOR_JS = {".js": (".ts", ".tsx"), ".jsx": (".tsx",), ".mjs": (".mts",), ".cjs": (".cts",)}
 
 _PY_KEYWORD = re.compile(r"import\b")
-# `#` comments are blanked (same length, so line numbers stay put) before
-# matching, so a `)` in a comment can't end a parenthesized import and an
-# unclosed `(` can't make the pattern backtrack.
-_PY_COMMENT = re.compile(r"#[^\n]*")
+# Strings and `#` comments are blanked (same length, so line numbers stay put)
+# before matching, so a `)` in a comment can't end a parenthesized import and an
+# unclosed `(` can't make the pattern backtrack. Strings are preserved so a `#`
+# inside a string (e.g. a one-line docstring) does not blank the rest of the line.
+_PY_COMMENT_OR_STRING = re.compile(
+    r'"""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\'|"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'|#[^\n]*'
+)
 # The names run to the end of the line, or past it after a backslash.
 _PY_IMPORT = re.compile(r"^[ \t]*import[ \t]+((?:[^\n;#\\]|\\\r?\n)+)", re.M)
-# Inside parentheses a `)` ends the import, but one inside a `#` comment does not.
 _PY_FROM = re.compile(r"^[ \t]*from[ \t]+(\.*)[ \t]*([\w.]*)[ \t]+import[ \t]*(\([^)]*\)|(?:[^\n;#\\]|\\\r?\n)*)", re.M)
 _PY_CONTINUED = re.compile(r"\\\r?\n")
 _PY_NAME = re.compile(r"[\w.]+")
@@ -161,7 +163,10 @@ def code_files(repo_dir: str) -> list[str]:
 def parse_imports(path: str, text: str) -> list[Import]:
     """Every import in a Python or JS/TS file's text; other files have none."""
     if path.endswith(PY_EXTENSIONS):
-        return _python_imports(_PY_COMMENT.sub(lambda m: re.sub(r"[^\n]", " ", m.group()), text))
+        def blank(match: re.Match[str]) -> str:
+            matched = match.group()
+            return " " * len(matched) if matched.startswith("#") else matched
+        return _python_imports(_PY_COMMENT_OR_STRING.sub(blank, text))
     if path.endswith(JS_EXTENSIONS):
         return _js_imports(text)
     return []

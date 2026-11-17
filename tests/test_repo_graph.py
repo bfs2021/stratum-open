@@ -159,6 +159,16 @@ def test_parenthesized_import_keeps_names_after_a_comment_with_a_paren():
         assert parse_imports("x.py", text) == [Import(1, "server", ("api", "db"))]
 
 
+def test_hash_inside_a_string_does_not_blank_the_rest_of_the_line():
+    # A `#` inside a one-line docstring must not blank the closing quotes or
+    # the imports that follow on later lines.
+    text = '"""Helpers for issue #12."""\nimport os\nfrom app import db\n'
+    assert parse_imports("x.py", text) == [Import(2, "os"), Import(3, "app", ("db",))]
+    # Both quote styles and escaped quotes inside strings.
+    text = "x = 'a # b'\ny = \"say \\\"hi # there\\\"\"\nimport os\n"
+    assert parse_imports("x.py", text) == [Import(3, "os")]
+
+
 def test_parenthesized_import_with_many_comments_returns_quickly():
     text = "from app.models import (\n" + "".join(
         f"    Name{i},  # used by the admin view\n" for i in range(5)
