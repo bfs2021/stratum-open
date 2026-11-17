@@ -1,3 +1,5 @@
+import time
+
 from stratum_open.repo.graph import Import, Importers, importers, parse_imports, reach_note
 
 
@@ -155,6 +157,25 @@ def test_parenthesized_import_keeps_names_after_a_comment_with_a_paren():
         "from server import (api,  # see docs()\n    db)\n",
     ):
         assert parse_imports("x.py", text) == [Import(1, "server", ("api", "db"))]
+
+
+def test_parenthesized_import_with_many_comments_returns_quickly():
+    text = "from app.models import (\n" + "".join(
+        f"    Name{i},  # used by the admin view\n" for i in range(5)
+    ) + ")\n"
+    started = time.monotonic()
+    assert parse_imports("x.py", text) == [
+        Import(1, "app.models", tuple(f"Name{i}" for i in range(5)))
+    ]
+    assert time.monotonic() - started < 1.0  # the old regex took ~0.2s for n=4, ~a day for n=8
+    # an unclosed `(` returns the module and no names, quickly
+    started = time.monotonic()
+    assert parse_imports("x.py", text[:-2]) == [Import(1, "app.models", ())]
+    assert time.monotonic() - started < 1.0
+    # a `)` inside a comment must not be taken for the end of the import
+    assert parse_imports("x.py", "from server import (api,  # see docs()\n    db,\n)") == [
+        Import(1, "server", ("api", "db"))
+    ]
 
 
 def test_reach_note_names_files_with_three_or_more_importers():
